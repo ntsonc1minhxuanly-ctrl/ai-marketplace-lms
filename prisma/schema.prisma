@@ -1,0 +1,318 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  AFFILIATE
+  INSTRUCTOR
+  ADMIN
+}
+
+enum ProductType {
+  AI_TOOL
+  COURSE
+  PROMPT
+  EBOOK
+  AI_ACCOUNT
+  WORKFLOW
+  AUTOMATION
+  TEMPLATE
+  SERVICE
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  PURCHASE
+  REFUND
+  COMMISSION
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Mật khẩu mã hóa (dự phòng khi không dùng Google Login)
+  role          Role      @default(USER)
+  balance       Float     @default(0) // Số dư ví điện tử
+  referralCode  String    @unique @default(dbgenerated("gen_random_uuid()")) // Mã affiliate giới thiệu
+  referredById  String?
+  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
+  referees      User[]    @relation("Referrals")
+
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+
+  // Core Platform Relations
+  orders        Order[]
+  transactions  Transaction[]
+  progress      LessonProgress[]
+  reviews       Review[]
+  toolUsages    AIToolUsage[]
+  notifications Notification[]
+  affiliateClicks AffiliateClick[]
+  commissions   AffiliateCommission[] @relation("AffiliateCommissions")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id            String      @id @default(uuid())
+  title         String
+  slug          String      @unique
+  description   String      @db.Text
+  shortDesc     String?     @db.Text
+  price         Float
+  salePrice     Float?
+  image         String?     // Ảnh bìa
+  type          ProductType
+  demoUrl       String?
+  downloadUrl   String?     // Cho Ebook, Template, Workflow, Prompt
+  licenseKey    String?     // Mã license (nếu có)
+  isActive      Boolean     @default(true)
+  metadata      Json?       // Lưu trữ cấu hình kỹ thuật, hướng dẫn
+  rating        Float       @default(0.0)
+  reviewsCount  Int         @default(0)
+
+  // Relations
+  course        Course?     // Nếu type == COURSE
+  reviews       Review[]
+  orderItems    OrderItem[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Course {
+  id           String   @id @default(uuid())
+  productId    String   @unique
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  instructorId String
+  chapters     Chapter[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Chapter {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int
+  lessons   Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lesson {
+  id        String           @id @default(uuid())
+  chapterId String
+  chapter   Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title     String
+  content   String?          @db.Text
+  videoUrl  String?
+  pdfUrl    String?
+  docUrl    String?
+  order     Int
+  duration  Int              @default(0) // Số phút
+  progress  LessonProgress[]
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model LessonProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+}
+
+model Order {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalAmount    Float
+  discountAmount Float             @default(0)
+  status         OrderStatus       @default(PENDING)
+  paymentMethod  String            // WALLET, BANK_TRANSFER, MOMO
+  paymentCode    String            @unique // Mã nội dung thanh toán duy nhất e.g., INV10001
+  items          OrderItem[]
+  commissions    AffiliateCommission[]
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  price     Float
+
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount         Float
+  type           TransactionType
+  status         TransactionStatus @default(PENDING)
+  description    String?
+  gateway        String?           // SEPAY, MOMO, MANUAL
+  transactionCode String?          @unique // Mã tham chiếu giao dịch bên ngoài
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+}
+
+model Coupon {
+  id             String       @id @default(uuid())
+  code           String       @unique
+  discountType   DiscountType
+  value          Float
+  minOrderAmount Float        @default(0)
+  maxDiscount    Float?
+  expiryDate     DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+}
+
+model AIToolUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolName  String   // SEO_GEN, CONTENT_WRITE, v.v.
+  prompt    String   @db.Text
+  response  String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   @default("INFO") // INFO, ORDER, PROMOTION, COURSE
+  createdAt DateTime @default(now())
+}
+
+model AffiliateClick {
+  id          String   @id @default(uuid())
+  referrerId  String
+  user        User     @relation(fields: [referrerId], references: [id])
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model AffiliateCommission {
+  id          String   @id @default(uuid())
+  referrerId  String
+  user        User     @relation("AffiliateCommissions", fields: [referrerId], references: [id])
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  amount      Float
+  isPaid      Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  content     String   @db.Text
+  summary     String?  @db.Text
+  image       String?
+  category    String   // AI, AUTOMATION, MARKETING, NO_CODE, TECHNOLOGY
+  authorName  String
+  authorImage String?
+  faqs        Json?    // Danh sách câu hỏi FAQ {q: string, a: string}
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
