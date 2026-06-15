@@ -42,6 +42,12 @@ export const MOCK_SEPAY_BANKS: SepayBankAccount[] = [
   }
 ];
 
+// Bộ lưu trữ danh sách ngân hàng thực tế/mock đang hoạt động
+let cachedSepayBanks: SepayBankAccount[] = [...MOCK_SEPAY_BANKS];
+
+// Bộ lưu trữ danh sách các mã đơn hàng / mã nạp ví đã đối soát thành công
+export const globalPaidOrders = new Set<string>();
+
 export function getSepayConfig(): SepayConfig {
   return globalSepayConfig;
 }
@@ -51,23 +57,55 @@ export function updateSepayConfig(config: Partial<SepayConfig>): SepayConfig {
   return globalSepayConfig;
 }
 
-// Kiểm tra API Key và trả về danh sách ngân hàng liên kết
+// Kiểm tra API Key và trả về danh sách ngân hàng liên kết từ SePay API v2
 export async function verifySepayApiKey(apiKey: string): Promise<SepayBankAccount[]> {
   if (!apiKey.trim()) {
     throw new Error("API Key không được trống!");
   }
   
-  // Nếu có API Key thật, có thể thực hiện fetch đến Sepay API:
-  // const res = await fetch("https://api.sepay.vn/v1/tenant/bank-accounts", { headers: { Authorization: `Bearer ${apiKey}` } });
-  // const data = await res.json();
+  // Nếu dùng API key demo hoặc sandbox test của hệ thống
+  if (apiKey.startsWith("sepay_api_key_test_") || apiKey === "test" || apiKey === "demo") {
+    cachedSepayBanks = [...MOCK_SEPAY_BANKS];
+    return MOCK_SEPAY_BANKS;
+  }
   
-  // Trả về mock nếu ở chế độ test hoặc trả về danh sách thật
-  return MOCK_SEPAY_BANKS;
+  try {
+    const res = await fetch("https://userapi.sepay.vn/v2/bank-accounts", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      },
+      next: { revalidate: 0 } as any
+    });
+    
+    if (!res.ok) {
+      throw new Error(`SePay API phản hồi lỗi: ${res.status}`);
+    }
+    
+    const json = await res.json();
+    if (json.status === "success" && Array.isArray(json.data)) {
+      const parsedBanks = json.data.map((b: any) => ({
+        id: b.id.toString(),
+        bankName: b.bank_full_name || b.bank_short_name || b.bank_code,
+        bankCode: b.bank_code,
+        accountNumber: b.account_number,
+        accountName: b.account_holder_name,
+        logo: `https://api.vietqr.io/img/${b.bank_code}.png`
+      }));
+      
+      cachedSepayBanks = parsedBanks.length > 0 ? parsedBanks : [...MOCK_SEPAY_BANKS];
+      return cachedSepayBanks;
+    } else {
+      throw new Error(json.message || "Cấu trúc phản hồi SePay không hợp lệ.");
+    }
+  } catch (err: any) {
+    console.error("Lỗi khi kết nối API SePay v2:", err);
+    throw new Error(`Lỗi kết nối API SePay: ${err.message}`);
+  }
 }
 
 // Lấy thông tin tài khoản ngân hàng đang được chọn làm mặc định
 export function getActiveBankAccount(): SepayBankAccount {
   const config = getSepayConfig();
-  const matched = MOCK_SEPAY_BANKS.find(b => b.id === config.selectedBankId);
-  return matched || MOCK_SEPAY_BANKS[0];
+  const matched = cachedSepayBanks.find(b => b.id === config.selectedBankId);
+  return matched || cachedSepayBanks[0] || MOCK_SEPAY_BANKS[0];
 }
