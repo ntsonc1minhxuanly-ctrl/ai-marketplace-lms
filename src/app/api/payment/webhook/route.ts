@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSepayConfig } from "@/lib/sepay";
+import { getSepayConfig, globalPaidOrders } from "@/lib/sepay";
 
 export async function POST(req: Request) {
   try {
@@ -38,21 +38,31 @@ export async function POST(req: Request) {
     if (content.includes("DEP")) {
       // Đối soát NẠP VÍ THÀNH VIÊN
       console.log(`[Đối soát] Nhận yêu cầu nạp tiền ví thành viên. Mã nạp: ${content}`);
+      
+      // Tìm chính xác mã nạp ví (ví dụ: DEP881232) và lưu vào cache
+      const matchedCode = content.match(/DEP\d+/)?.[0] || content;
+      globalPaidOrders.add(matchedCode);
+
       return NextResponse.json({
         status: "success",
         type: "DEPOSIT",
         amount,
-        code: content,
+        code: matchedCode,
         message: `Đã cộng số dư ví +${amount.toLocaleString("vi-VN")}đ tự động thành công.`
       });
     } else if (content.includes("INV")) {
       // Đối soát THANH TOÁN ĐƠN HÀNG
       console.log(`[Đối soát] Nhận thanh toán cho đơn hàng. Mã hóa đơn: ${content}`);
+      
+      // Tìm chính xác mã hóa đơn (ví dụ: INV123456) và lưu vào cache
+      const matchedCode = content.match(/INV\d+/)?.[0] || content;
+      globalPaidOrders.add(matchedCode);
+
       return NextResponse.json({
         status: "success",
         type: "PURCHASE",
         amount,
-        code: content,
+        code: matchedCode,
         message: "Đơn hàng đã được đổi sang trạng thái PAID, kích hoạt tài liệu số thành công."
       });
     }
