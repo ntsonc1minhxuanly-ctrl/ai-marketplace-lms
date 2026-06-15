@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     // 2. Nếu chưa có trong cache, và API key là thật, ta sẽ chủ động gọi API SePay v2 để quét giao dịch
     const config = getSepayConfig();
-    const apiKey = config.apiKey;
+    const apiKey = (searchParams.get("apiKey") || config.apiKey)?.trim();
 
     if (apiKey && !apiKey.startsWith("sepay_api_key_test_") && apiKey !== "test" && apiKey !== "demo") {
       try {
