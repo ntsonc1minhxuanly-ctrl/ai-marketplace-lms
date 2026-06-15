@@ -24,23 +24,41 @@ export default function SepaySettingsPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setSepayWebhookUrl(`${window.location.origin}/api/payment/webhook`);
-    }
 
-    async function loadSepayConfig() {
-      try {
-        const res = await fetch("/api/admin/sepay-config");
-        if (res.ok) {
-          const data = await res.json();
-          setSepayApiKey(data.config.apiKey);
-          setSepayWebhookSecret(data.config.webhookSecret);
-          setSelectedBankId(data.config.selectedBankId);
-          setSepayBanks(data.banks);
-        }
-      } catch (e) {
-        console.error("Lỗi tải cấu hình Sepay", e);
+      // Đọc từ localStorage trước để hiển thị tức thì
+      const localKey = localStorage.getItem("sepay_api_key");
+      const localSecret = localStorage.getItem("sepay_webhook_secret");
+      const localBankId = localStorage.getItem("sepay_selected_bank_id");
+      const localBanks = localStorage.getItem("sepay_banks");
+
+      if (localKey) setSepayApiKey(localKey);
+      if (localSecret) setSepayWebhookSecret(localSecret);
+      if (localBankId) setSelectedBankId(localBankId);
+      if (localBanks) {
+        try {
+          setSepayBanks(JSON.parse(localBanks));
+        } catch (e) {}
       }
+
+      // Vẫn gọi API để kiểm tra đồng bộ với server
+      async function loadSepayConfig() {
+        try {
+          const res = await fetch("/api/admin/sepay-config");
+          if (res.ok) {
+            const data = await res.json();
+            if (!localKey) {
+              setSepayApiKey(data.config.apiKey);
+              setSepayWebhookSecret(data.config.webhookSecret);
+              setSelectedBankId(data.config.selectedBankId);
+              setSepayBanks(data.banks);
+            }
+          }
+        } catch (e) {
+          console.error("Lỗi tải cấu hình Sepay", e);
+        }
+      }
+      loadSepayConfig();
     }
-    loadSepayConfig();
   }, []);
 
   // Sepay Config Form save & verify
@@ -64,8 +82,15 @@ export default function SepaySettingsPage() {
       const data = await res.json();
       if (res.ok) {
         setSepayBanks(data.banks);
-        setSelectedBankId(data.config.selectedBankId);
+        const newSelectedId = data.config.selectedBankId || (data.banks[0]?.id || "");
+        setSelectedBankId(newSelectedId);
         setSepaySuccess(true);
+
+        // Lưu vào localStorage để không bị mất khi Vercel reset memory
+        localStorage.setItem("sepay_api_key", sepayApiKey);
+        localStorage.setItem("sepay_webhook_secret", sepayWebhookSecret);
+        localStorage.setItem("sepay_selected_bank_id", newSelectedId);
+        localStorage.setItem("sepay_banks", JSON.stringify(data.banks));
       } else {
         setSepayError(data.error || "Không thể xác minh API Key với Sepay.");
       }
@@ -207,6 +232,8 @@ export default function SepaySettingsPage() {
                   key={bank.id}
                   onClick={async () => {
                     setSelectedBankId(bank.id);
+                    localStorage.setItem("sepay_selected_bank_id", bank.id);
+                    
                     // Lưu cấu hình ngân hàng mặc định
                     try {
                       await fetch("/api/admin/sepay-config", {
