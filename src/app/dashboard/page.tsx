@@ -147,6 +147,16 @@ function DashboardContent() {
           </button>
         ))}
 
+        {user?.role === "ADMIN" && (
+          <Link
+            href="/admin/thanh-toan"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-blue-400 hover:text-white hover:bg-blue-600/10 transition-all border border-blue-900/30 bg-blue-950/10 mt-2"
+          >
+            <FolderLock className="w-4 h-4 shrink-0" />
+            <span>Quản lý Thanh toán (Admin)</span>
+          </Link>
+        )}
+
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-400 hover:text-white hover:bg-red-950/20 border-t border-white/5 mt-3 pt-3"
