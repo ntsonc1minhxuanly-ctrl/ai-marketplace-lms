@@ -37,10 +37,25 @@ export default function CheckoutPage() {
     logo: "https://api.vietqr.io/img/MB.png"
   });
 
-  // Khởi tạo mã hóa đơn ngẫu nhiên và lấy tài khoản ngân hàng động từ Sepay
+  // Khởi tạo mã hóa đơn ngẫu nhiên và lấy tài khoản ngân hàng động từ Sepay / localStorage
   useEffect(() => {
     const randCode = "INV" + Math.floor(100000 + Math.random() * 900000);
     setOrderCode(randCode);
+
+    if (typeof window !== "undefined") {
+      const localBankId = localStorage.getItem("sepay_selected_bank_id");
+      const localBanks = localStorage.getItem("sepay_banks");
+
+      if (localBankId && localBanks) {
+        try {
+          const banks = JSON.parse(localBanks);
+          const matched = banks.find((b: any) => b.id === localBankId);
+          if (matched) {
+            setActiveBank(matched);
+          }
+        } catch (e) {}
+      }
+    }
 
     async function fetchActiveBank() {
       try {
@@ -49,7 +64,7 @@ export default function CheckoutPage() {
           const data = await res.json();
           const selectedId = data.config.selectedBankId;
           const matched = data.banks.find((b: any) => b.id === selectedId);
-          if (matched) {
+          if (matched && !localStorage.getItem("sepay_selected_bank_id")) {
             setActiveBank(matched);
           }
         }
@@ -68,7 +83,8 @@ export default function CheckoutPage() {
 
     const checkPaymentStatus = async () => {
       try {
-        const res = await fetch(`/api/payment/check-status?orderCode=${orderCode}`);
+        const apiKey = typeof window !== "undefined" ? localStorage.getItem("sepay_api_key") || "" : "";
+        const res = await fetch(`/api/payment/check-status?orderCode=${orderCode}&apiKey=${encodeURIComponent(apiKey)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.paid) {
