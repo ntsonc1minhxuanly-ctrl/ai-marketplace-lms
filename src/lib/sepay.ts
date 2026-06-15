@@ -19,7 +19,7 @@ let globalSepayConfig: SepayConfig = {
   apiKey: "sepay_api_key_test_12345",
   webhookSecret: "sepay_webhook_secret_xyz",
   isActive: true,
-  selectedBankId: "bank-1"
+  selectedBankId: "bank-3"
 };
 
 // Tài khoản ngân hàng giả lập liên kết sẵn với tài khoản Sepay
@@ -39,6 +39,14 @@ export const MOCK_SEPAY_BANKS: SepayBankAccount[] = [
     accountNumber: "19022026888",
     accountName: "ANTIGRAVITY CO LTD",
     logo: "https://api.vietqr.io/img/MB.png"
+  },
+  {
+    id: "bank-3",
+    bankName: "Ngân hàng TMCP Việt Nam Thịnh Vượng (VPBank)",
+    bankCode: "VPB",
+    accountNumber: "90354965",
+    accountName: "TRAN PHUOC VINH",
+    logo: "https://api.vietqr.io/img/VPB.png"
   }
 ];
 
