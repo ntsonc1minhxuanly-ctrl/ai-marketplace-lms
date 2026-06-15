@@ -41,12 +41,13 @@ export default function LoginPage() {
   const handleQuickLogin = async (mockEmail: string) => {
     setIsLoading(true);
     setEmail(mockEmail);
-    setPassword("password123");
+    const mockPassword = mockEmail === "thanhson029@gmail.com" ? "09082012a" : "password123";
+    setPassword(mockPassword);
     
     try {
       const res = await signIn("credentials", {
         email: mockEmail,
-        password: "password123",
+        password: mockPassword,
         redirect: false,
       });
 
@@ -148,7 +149,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-2 gap-2">
             {[
               { email: "user@dev.com", name: "Khách hàng", style: "bg-slate-950 border-white/5 text-slate-300" },
-              { email: "admin@dev.com", name: "Quản trị viên", style: "bg-blue-950/20 border-blue-800/20 text-blue-300" },
+              { email: "thanhson029@gmail.com", name: "Quản trị viên", style: "bg-blue-950/20 border-blue-800/20 text-blue-300" },
               { email: "affiliate@dev.com", name: "Affiliate CTV", style: "bg-purple-950/20 border-purple-800/20 text-purple-300" },
               { email: "instructor@dev.com", name: "Giảng viên", style: "bg-emerald-950/20 border-emerald-800/20 text-emerald-300" }
             ].map((acc, index) => (
