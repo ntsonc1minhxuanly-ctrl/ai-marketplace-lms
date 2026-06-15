@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { MOCK_PRODUCTS } from "@/lib/mockData";
+import { MOCK_PRODUCTS, MOCK_COURSE_DETAILS } from "@/lib/mockData";
 import { 
   Settings, 
   TrendingUp, 
@@ -14,7 +14,11 @@ import {
   Trash2, 
   CheckCircle, 
   AlertCircle,
-  Tag
+  Tag,
+  BookOpen,
+  Globe,
+  FileText,
+  PlayCircle
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,7 +28,15 @@ function AdminContent() {
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [activeSubTab, setActiveSubTab] = useState("products");
 
-  // Mock Admin states
+  // Mock Website Settings State
+  const [siteName, setSiteName] = useState("Antigravity AI");
+  const [siteDesc, setSiteDesc] = useState("Marketplace Công cụ AI, Khóa học Automations & Tài liệu số");
+  const [hotline, setHotline] = useState("+84 (0) 987 654 321");
+  const [supportEmail, setSupportEmail] = useState("support@antigravity.vn");
+  const [address, setAddress] = useState("Số 12 Khu đô thị Sala, Phường An Lợi Đông, TP. Thủ Đức, TP. Hồ Chí Minh");
+  const [showConfigSuccess, setShowConfigSuccess] = useState(false);
+
+  // Mock Products CRUD States
   const [newTitle, setNewTitle] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [newType, setNewType] = useState("AI_TOOL");
@@ -35,9 +47,25 @@ function AdminContent() {
     { id: "dep-102", user: "Hoàng Kim Yến", amount: 500000, code: "DEP112344", time: "1 giờ trước" }
   ]);
 
+  // Mock LMS Course Editor States
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("prod-course-1");
+  const [courseChapters, setCourseChapters] = useState<any[]>([]);
+  const [showLmsSuccess, setShowLmsSuccess] = useState(false);
+
   const user = session?.user as any;
 
-  // Chặn truy cập nếu không phải ADMIN
+  // Sync LMS Course syllabus details locally
+  useEffect(() => {
+    const details = (MOCK_COURSE_DETAILS as any)[selectedCourseId];
+    if (details) {
+      // Deep copy to prevent mutating the original mock import immediately
+      setCourseChapters(JSON.parse(JSON.stringify(details.chapters)));
+    } else {
+      setCourseChapters([]);
+    }
+  }, [selectedCourseId]);
+
+  // Block access if not ADMIN role
   if (!session || user?.role !== "ADMIN") {
     return (
       <div className="py-20 text-center space-y-4">
@@ -45,7 +73,7 @@ function AdminContent() {
           <AlertCircle className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-bold text-white">Quyền Truy Cập Bị Từ Chối</h2>
-        <p className="text-xs text-slate-400">Bạn cần đăng nhập bằng tài khoản Quản trị viên (admin@dev.com) để truy cập trang này.</p>
+        <p className="text-xs text-slate-400">Bạn cần đăng nhập bằng tài khoản Quản trị viên của bạn (**thanhson029@gmail.com** / **09082012a**) để truy cập trang quản lý này.</p>
         <Link href="/login" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all inline-block">
           Đăng nhập Admin
         </Link>
@@ -53,7 +81,26 @@ function AdminContent() {
     );
   }
 
-  // Quản lý CRUD Sản phẩm giả lập
+  // General Website Settings Form submit
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowConfigSuccess(true);
+    setTimeout(() => setShowConfigSuccess(false), 3000);
+  };
+
+  // LMS Update Lessons logic
+  const handleUpdateLesson = (chapterIndex: number, lessonIndex: number, field: string, value: string) => {
+    const updated = [...courseChapters];
+    updated[chapterIndex].lessons[lessonIndex][field] = value;
+    setCourseChapters(updated);
+  };
+
+  const handleSaveLmsSyllabus = () => {
+    setShowLmsSuccess(true);
+    setTimeout(() => setShowLmsSuccess(false), 3000);
+  };
+
+  // Products CRUD handlers
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newPrice.trim()) return;
@@ -80,26 +127,24 @@ function AdminContent() {
     setProducts(products.filter(p => p.id !== id));
   };
 
-  // Duyệt nạp tiền giả lập
+  // Wallet Approvals handler
   const handleApproveDeposit = (id: string, user: string, amount: number) => {
     setPendingDeposits(pendingDeposits.filter(d => d.id !== id));
-    
-    // Bắn thông báo nạp thành công giả lập
     const event = new CustomEvent("payment_success", {
       detail: { amount, type: "DEPOSIT" }
     });
     window.dispatchEvent(event);
-    alert(`Đã duyệt cộng tiền +${amount.toLocaleString("vi-VN")}đ thành công cho ${user}!`);
+    alert(`Đã duyệt cộng số dư ví +${amount.toLocaleString("vi-VN")}đ tự động cho ${user}!`);
   };
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
-        <Settings className="w-7 h-7 text-blue-500 animate-spin" style={{ animationDuration: '6s' }} />
+        <Settings className="w-7 h-7 text-blue-500 animate-spin" style={{ animationDuration: '8s' }} />
         <div>
           <h1 className="text-2xl font-bold text-white">Admin CMS Dashboard</h1>
-          <p className="text-xs text-slate-400">Trang quản trị vận hành marketplace, hệ thống khóa học lms, ví điện tử và vouchers.</p>
+          <p className="text-xs text-slate-400">Trang quản trị toàn diện: Cấu hình website, chỉnh sửa khóa học LMS, sản phẩm marketplace & duyệt nạp ví.</p>
         </div>
       </div>
 
@@ -121,31 +166,34 @@ function AdminContent() {
         ))}
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div className="flex gap-2 border-b border-white/5 pb-2">
+      {/* Sub-navigation tabs */}
+      <div className="flex gap-2 border-b border-white/5 pb-2 overflow-x-auto scrollbar-none">
         {[
-          { id: "products", label: "Quản lý sản phẩm" },
-          { id: "deposits", label: "Duyệt nạp ví" },
-          { id: "add_product", label: "Thêm sản phẩm mới" }
+          { id: "products", label: "Quản lý sản phẩm", icon: <Layers className="w-4 h-4" /> },
+          { id: "lms_editor", label: "Chỉnh sửa khóa học (LMS)", icon: <BookOpen className="w-4 h-4" /> },
+          { id: "site_settings", label: "Cấu hình Website", icon: <Globe className="w-4 h-4" /> },
+          { id: "deposits", label: "Duyệt nạp ví QR", icon: <Wallet className="w-4 h-4" /> },
+          { id: "add_product", label: "Thêm sản phẩm", icon: <Plus className="w-4 h-4" /> }
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
               activeSubTab === tab.id
-                ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.25)]"
                 : "bg-white/5 border border-white/5 text-slate-400 hover:text-white"
             }`}
           >
+            {tab.icon}
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* SUB-TAB 1: PRODUCTS LIST */}
+      {/* TAB 1: PRODUCTS LIST */}
       {activeSubTab === "products" && (
         <div className="glass-panel p-5 rounded-2xl bg-slate-900/60 space-y-4">
-          <h2 className="text-sm font-bold text-white mb-2">Danh sách mặt hàng đang kinh doanh</h2>
+          <h2 className="text-sm font-bold text-white mb-2">Quản lý kho sản phẩm số đang bán</h2>
           
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-400 border-collapse">
@@ -181,10 +229,197 @@ function AdminContent() {
         </div>
       )}
 
-      {/* SUB-TAB 2: DEPOSIT RECONCILIATIONS APPROVALS */}
+      {/* TAB 2: LMS CURRICULUM EDITOR */}
+      {activeSubTab === "lms_editor" && (
+        <div className="glass-panel p-5 rounded-2xl bg-slate-900/60 space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-white">Chỉnh Sửa Giáo Trình & Bài Giảng LMS</h2>
+              <p className="text-[11px] text-slate-400">Thay đổi tiêu đề bài giảng, video clip bài học và tài liệu PDF/Docx đính kèm của từng khóa học.</p>
+            </div>
+            
+            {/* Course Selector */}
+            <select
+              value={selectedCourseId}
+              onChange={(e) => setSelectedCourseId(e.target.value)}
+              className="bg-slate-950 border border-white/10 text-xs text-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 cursor-pointer font-bold"
+            >
+              <option value="prod-course-1">Khóa Prompt Engineering</option>
+              <option value="prod-course-2">Khóa Thiết Lập Phễu Bán Hàng</option>
+            </select>
+          </div>
+
+          {showLmsSuccess && (
+            <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/30 text-emerald-400 text-xs font-semibold animate-pulse">
+              ✓ Cập nhật giáo trình khóa học thành công! Các bài học mới đã được lưu vào hệ thống LMS.
+            </div>
+          )}
+
+          {courseChapters.length === 0 ? (
+            <div className="py-8 text-center text-slate-500 text-xs">
+              Không tìm thấy chương học nào cho khóa học này.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {courseChapters.map((chap, chapIdx) => (
+                <div key={chap.id} className="p-4 rounded-xl bg-slate-950 border border-white/5 space-y-4">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <span className="text-xs font-bold text-purple-400">{chap.title}</span>
+                    <span className="text-[10px] text-slate-500">Chương {chap.order}</span>
+                  </div>
+
+                  <div className="space-y-4 pl-2">
+                    {chap.lessons.map((les: any, lesIdx: number) => (
+                      <div key={les.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border-b border-white/5 pb-4 last:border-0 last:pb-0">
+                        {/* Title input */}
+                        <div className="md:col-span-4 space-y-1">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" /> Tiêu đề bài học:
+                          </label>
+                          <input
+                            type="text"
+                            value={les.title}
+                            onChange={(e) => handleUpdateLesson(chapIdx, lesIdx, "title", e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        {/* Video Url input */}
+                        <div className="md:col-span-3 space-y-1">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                            <PlayCircle className="w-3 h-3" /> Đường dẫn Video bài giảng:
+                          </label>
+                          <input
+                            type="text"
+                            value={les.videoUrl || ""}
+                            onChange={(e) => handleUpdateLesson(chapIdx, lesIdx, "videoUrl", e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+
+                        {/* Attachment 1: PDF */}
+                        <div className="md:col-span-2.5 space-y-1">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                            <FileText className="w-3 h-3" /> Tài liệu đính kèm (PDF):
+                          </label>
+                          <input
+                            type="text"
+                            value={les.pdfUrl || ""}
+                            onChange={(e) => handleUpdateLesson(chapIdx, lesIdx, "pdfUrl", e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+
+                        {/* Lesson duration */}
+                        <div className="md:col-span-2 space-y-1">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase">Thời lượng (phút):</label>
+                          <input
+                            type="number"
+                            value={les.duration}
+                            onChange={(e) => handleUpdateLesson(chapIdx, lesIdx, "duration", e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-bold"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={handleSaveLmsSyllabus}
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(124,58,237,0.3)]"
+              >
+                Cập nhật giáo trình khóa học
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: WEBSITE CONFIG EDITOR */}
+      {activeSubTab === "site_settings" && (
+        <div className="glass-panel p-6 rounded-2xl bg-slate-900/60 max-w-xl mx-auto space-y-6">
+          <h2 className="text-sm font-bold text-white border-b border-white/5 pb-2">Thay Đổi Cấu Hình & Thông Tin Website</h2>
+
+          {showConfigSuccess && (
+            <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/30 text-emerald-400 text-xs font-semibold animate-pulse">
+              ✓ Đã lưu cấu hình website thành công lên live production!
+            </div>
+          )}
+
+          <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-slate-300 font-bold">Tên Website chính (Brand Name):</label>
+              <input
+                type="text"
+                required
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-bold"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-slate-300 font-bold">Mô tả Website (Meta Description):</label>
+              <textarea
+                required
+                rows={2}
+                value={siteDesc}
+                onChange={(e) => setSiteDesc(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 leading-normal"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-bold">Số điện thoại Hotline:</label>
+                <input
+                  type="text"
+                  required
+                  value={hotline}
+                  onChange={(e) => setHotline(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-bold">Email hỗ trợ khách hàng:</label>
+                <input
+                  type="email"
+                  required
+                  value={supportEmail}
+                  onChange={(e) => setSupportEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-slate-300 font-bold">Địa chỉ đăng ký kinh doanh:</label>
+              <input
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+            >
+              Lưu cấu hình hệ thống
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* TAB 4: DEPOSIT RECONCILIATIONS APPROVALS */}
       {activeSubTab === "deposits" && (
         <div className="glass-panel p-5 rounded-2xl bg-slate-900/60 space-y-4">
-          <h2 className="text-sm font-bold text-white mb-2">Yêu cầu nạp tiền ví chờ duyệt (Sepay VietQR)</h2>
+          <h2 className="text-sm font-bold text-white mb-2">Duyệt nạp tiền Ví điện tử (Sepay VietQR)</h2>
           
           {pendingDeposits.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
@@ -215,10 +450,10 @@ function AdminContent() {
         </div>
       )}
 
-      {/* SUB-TAB 3: ADD PRODUCT FORM */}
+      {/* TAB 5: ADD PRODUCT FORM */}
       {activeSubTab === "add_product" && (
         <div className="glass-panel p-6 rounded-2xl bg-slate-900/60 max-w-xl mx-auto">
-          <h2 className="text-sm font-bold text-white border-b border-white/5 pb-2 mb-4">Thêm sản phẩm kinh doanh mới</h2>
+          <h2 className="text-sm font-bold text-white border-b border-white/5 pb-2 mb-4">Đăng bán sản phẩm mới</h2>
           
           <form onSubmit={handleAddProduct} className="space-y-4 text-xs">
             <div className="space-y-1.5">
