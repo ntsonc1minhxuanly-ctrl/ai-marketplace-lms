@@ -26,19 +26,19 @@ let globalSepayConfig: SepayConfig = {
 export const MOCK_SEPAY_BANKS: SepayBankAccount[] = [
   {
     id: "bank-1",
+    bankName: "Ngân hàng TMCP Đầu tư và Phát triển Việt Nam (BIDV)",
+    bankCode: "BIDV",
+    accountNumber: "3710833176",
+    accountName: "NONG THANH SON",
+    logo: "https://api.vietqr.io/img/BIDV.png"
+  },
+  {
+    id: "bank-2",
     bankName: "Ngân hàng Quân Đội (MB Bank)",
     bankCode: "MBB",
     accountNumber: "19022026888",
     accountName: "ANTIGRAVITY CO LTD",
     logo: "https://api.vietqr.io/img/MB.png"
-  },
-  {
-    id: "bank-2",
-    bankName: "Ngân hàng Kỹ Thương (Techcombank)",
-    bankCode: "TCB",
-    accountNumber: "19033036999",
-    accountName: "NGUYEN THANH SON",
-    logo: "https://api.vietqr.io/img/TCB.png"
   }
 ];
 
