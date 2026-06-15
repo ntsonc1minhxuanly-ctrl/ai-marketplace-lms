@@ -3,10 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 // Định nghĩa mock users để test nhanh chóng không cần database/Google setup phức tạp
 export const MOCK_USERS = [
-  { id: "admin-id", name: "Nguyễn Admin", email: "admin@dev.com", role: "ADMIN", balance: 5000000, referralCode: "ref-admin" },
-  { id: "user-id", name: "Trần Khách Hàng", email: "user@dev.com", role: "USER", balance: 150000, referralCode: "ref-user" },
-  { id: "affiliate-id", name: "Lê Cộng Tác Viên", email: "affiliate@dev.com", role: "AFFILIATE", balance: 1200000, referralCode: "ref-aff" },
-  { id: "instructor-id", name: "Phạm Giảng Viên", email: "instructor@dev.com", role: "INSTRUCTOR", balance: 800000, referralCode: "ref-inst" },
+  { id: "admin-thanhson", name: "Thanh Sơn Admin", email: "thanhson029@gmail.com", password: "09082012a", role: "ADMIN", balance: 10000000, referralCode: "ref-thanhson" },
+  { id: "admin-id", name: "Nguyễn Admin", email: "admin@dev.com", password: "any", role: "ADMIN", balance: 5000000, referralCode: "ref-admin" },
+  { id: "user-id", name: "Trần Khách Hàng", email: "user@dev.com", password: "any", role: "USER", balance: 150000, referralCode: "ref-user" },
+  { id: "affiliate-id", name: "Lê Cộng Tác Viên", email: "affiliate@dev.com", password: "any", role: "AFFILIATE", balance: 1200000, referralCode: "ref-aff" },
+  { id: "instructor-id", name: "Phạm Giảng Viên", email: "instructor@dev.com", password: "any", role: "INSTRUCTOR", balance: 800000, referralCode: "ref-inst" },
 ];
 
 export const authOptions: NextAuthOptions = {
@@ -15,7 +16,7 @@ export const authOptions: NextAuthOptions = {
       name: "Mock Credentials",
       credentials: {
         email: { label: "Email", type: "email", placeholder: "user@dev.com" },
-        password: { label: "Mật khẩu (bất kỳ)", type: "password" }
+        password: { label: "Mật khẩu", type: "password" }
       },
       async authorize(credentials) {
         if (!credentials?.email) return null;
@@ -23,6 +24,11 @@ export const authOptions: NextAuthOptions = {
         // Tìm kiếm mock user
         const matched = MOCK_USERS.find(u => u.email === credentials.email);
         if (matched) {
+          // Bắt buộc khớp mật khẩu cho tài khoản thanhson029@gmail.com
+          if (matched.email === "thanhson029@gmail.com" && credentials.password !== matched.password) {
+            return null;
+          }
+          
           return {
             id: matched.id,
             name: matched.name,
