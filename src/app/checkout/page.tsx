@@ -29,10 +29,35 @@ export default function CheckoutPage() {
   const totalAmount = getDiscountedTotal();
   const user = session?.user as any;
 
-  // Khởi tạo mã hóa đơn ngẫu nhiên
+  const [activeBank, setActiveBank] = useState<any>({
+    bankName: "Ngân hàng Quân Đội (MB Bank)",
+    bankCode: "MBB",
+    accountNumber: "19022026888",
+    accountName: "ANTIGRAVITY CO LTD",
+    logo: "https://api.vietqr.io/img/MB.png"
+  });
+
+  // Khởi tạo mã hóa đơn ngẫu nhiên và lấy tài khoản ngân hàng động từ Sepay
   useEffect(() => {
     const randCode = "INV" + Math.floor(100000 + Math.random() * 900000);
     setOrderCode(randCode);
+
+    async function fetchActiveBank() {
+      try {
+        const res = await fetch("/api/admin/sepay-config");
+        if (res.ok) {
+          const data = await res.json();
+          const selectedId = data.config.selectedBankId;
+          const matched = data.banks.find((b: any) => b.id === selectedId);
+          if (matched) {
+            setActiveBank(matched);
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi lấy thông tin ngân hàng thanh toán", e);
+      }
+    }
+    fetchActiveBank();
   }, []);
 
   if (cartItems.length === 0 && !isPaid) {
@@ -234,7 +259,7 @@ export default function CheckoutPage() {
               </div>
               <img 
                 src={paymentMethod === "BANK_TRANSFER" 
-                  ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=vietqr-mock-payment-account-19022026888-amount-${totalAmount}-description-${orderCode}` 
+                  ? `https://img.vietqr.io/image/${activeBank.bankCode}-${activeBank.accountNumber}-compact2.png?amount=${totalAmount}&addInfo=${orderCode}&accountName=${encodeURIComponent(activeBank.accountName)}` 
                   : "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=momo-mock-payment-amount"
                 } 
                 alt="QR Code thanh toan" 
@@ -248,15 +273,15 @@ export default function CheckoutPage() {
               <div className="p-3.5 rounded-xl bg-slate-950 border border-white/5 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Ngân hàng:</span>
-                  <span className="font-bold text-white">MB Bank (Quân Đội)</span>
+                  <span className="font-bold text-white">{activeBank.bankName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Số tài khoản:</span>
-                  <span className="font-bold text-white text-blue-400">1902 2026 888</span>
+                  <span className="font-bold text-white text-blue-400 font-mono">{activeBank.accountNumber}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Chủ tài khoản:</span>
-                  <span className="font-bold text-white">ANTIGRAVITY CO LTD</span>
+                  <span className="font-bold text-white">{activeBank.accountName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Số tiền:</span>
