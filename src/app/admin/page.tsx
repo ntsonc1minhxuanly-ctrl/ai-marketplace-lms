@@ -24,9 +24,13 @@ import {
   Check
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 
 function AdminContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tab = searchParams.get("tab") || "overview";
 
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [activeSubTab, setActiveSubTab] = useState("products");
@@ -68,6 +72,19 @@ function AdminContent() {
 
   const user = session?.user as any;
 
+  // Sync tab with search parameters
+  useEffect(() => {
+    if (tab === "sepay_settings") {
+      router.push("/admin/thanh-toan");
+    } else if (tab === "overview" || tab === "products") {
+      setActiveSubTab("products");
+    } else if (tab === "site_settings") {
+      setActiveSubTab("site_settings");
+    } else {
+      setActiveSubTab(tab);
+    }
+  }, [tab, router]);
+
   // Load Sepay Configuration on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -100,22 +117,6 @@ function AdminContent() {
       setCourseChapters([]);
     }
   }, [selectedCourseId]);
-
-  // Block access if not ADMIN role
-  if (!session || user?.role !== "ADMIN") {
-    return (
-      <div className="py-20 text-center space-y-4">
-        <div className="p-3 bg-red-950/30 border border-red-800/30 text-red-400 rounded-xl inline-flex">
-          <AlertCircle className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-bold text-white">Quyền Truy Cập Bị Từ Chối</h2>
-        <p className="text-xs text-slate-400">Bạn cần đăng nhập bằng tài khoản Quản trị viên của bạn (**thanhson029@gmail.com** / **09082012a**) để truy cập trang quản lý này.</p>
-        <Link href="/login" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all inline-block">
-          Đăng nhập Admin
-        </Link>
-      </div>
-    );
-  }
 
   // Website Settings Form save
   const handleSaveConfig = (e: React.FormEvent) => {
@@ -253,7 +254,13 @@ function AdminContent() {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
+            onClick={() => {
+              if (tab.id === "sepay_settings") {
+                router.push("/admin/thanh-toan");
+              } else {
+                router.push(`/admin?tab=${tab.id}`);
+              }
+            }}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
               activeSubTab === tab.id
                 ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.25)]"
@@ -719,6 +726,19 @@ function AdminContent() {
               <Plus className="w-4 h-4" /> Đăng bán sản phẩm
             </button>
           </form>
+        </div>
+      )}
+
+      {/* PLACEHOLDER MOCK VIEWS FOR OTHER MENU ITEMS */}
+      {!["products", "lms_editor", "site_settings", "deposits", "add_product"].includes(activeSubTab) && (
+        <div className="glass-panel p-8 rounded-2xl bg-slate-900/60 text-center space-y-4 border border-white/5 max-w-xl mx-auto my-10">
+          <div className="p-3 bg-blue-950/40 border border-blue-900/30 text-blue-400 rounded-xl inline-flex">
+            <Settings className="w-6 h-6 animate-pulse" />
+          </div>
+          <h2 className="text-base font-bold text-white">Chức năng đang được tích hợp</h2>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            Khu vực quản lý này đang được đồng bộ và cập nhật tự động bởi hệ thống King Automation AI.
+          </p>
         </div>
       )}
     </div>
