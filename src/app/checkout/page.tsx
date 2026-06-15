@@ -60,6 +60,55 @@ export default function CheckoutPage() {
     fetchActiveBank();
   }, []);
 
+  // Polling tự động check thanh toán từ cổng SePay khi đã hiện QR Code
+  useEffect(() => {
+    if (!isPaid || !orderCode) return;
+
+    let intervalId: NodeJS.Timeout;
+
+    const checkPaymentStatus = async () => {
+      try {
+        const res = await fetch(`/api/payment/check-status?orderCode=${orderCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.paid) {
+            clearInterval(intervalId);
+
+            // 1. Lưu thông tin đơn hàng đã mua vào localStorage để hiển thị trong "Thư viện"
+            const purchasedProductIds = cartItems.map(item => item.product.id);
+            const savedPurchases = localStorage.getItem("purchased_products") || "[]";
+            try {
+              const parsed = JSON.parse(savedPurchases);
+              localStorage.setItem("purchased_products", JSON.stringify([...parsed, ...purchasedProductIds]));
+            } catch (e) {
+              localStorage.setItem("purchased_products", JSON.stringify(purchasedProductIds));
+            }
+
+            // 2. Dispatch sự kiện thanh toán thành công để ClientLayout hiển thị thông báo
+            const event = new CustomEvent("payment_success", {
+              detail: { amount: totalAmount, type: "PURCHASE" }
+            });
+            window.dispatchEvent(event);
+
+            // 3. Reset giỏ hàng
+            clearCart();
+
+            // 4. Chuyển hướng sang thư viện sản phẩm của người dùng
+            router.push("/dashboard?tab=library");
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi khi check trạng thái thanh toán tự động:", err);
+      }
+    };
+
+    // Chạy kiểm tra ngay lập tức, sau đó lặp lại mỗi 3 giây
+    checkPaymentStatus();
+    intervalId = setInterval(checkPaymentStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [isPaid, orderCode, cartItems, totalAmount, clearCart, router]);
+
   if (cartItems.length === 0 && !isPaid) {
     return (
       <div className="py-20 text-center space-y-4">
@@ -85,33 +134,34 @@ export default function CheckoutPage() {
   const handleSimulatePaymentWebhook = async () => {
     setIsProcessing(true);
     
-    // Giả lập gửi callback API đến webhook Sepay / Momo tự động
-    setTimeout(async () => {
-      setIsProcessing(false);
-      
-      // 1. Lưu thông tin đơn hàng đã mua vào localStorage để hiển thị trong "Thư viện"
-      const purchasedProductIds = cartItems.map(item => item.product.id);
-      const savedPurchases = localStorage.getItem("purchased_products") || "[]";
-      try {
-        const parsed = JSON.parse(savedPurchases);
-        localStorage.setItem("purchased_products", JSON.stringify([...parsed, ...purchasedProductIds]));
-      } catch (e) {
-        localStorage.setItem("purchased_products", JSON.stringify(purchasedProductIds));
-      }
-
-      // 2. Cộng doanh số affiliate giới thiệu nếu có
-      // 3. Dispatch sự kiện thanh toán thành công để ClientLayout phát tín hiệu thông báo
-      const event = new CustomEvent("payment_success", {
-        detail: { amount: totalAmount, type: "PURCHASE" }
+    try {
+      // Gửi mock webhook callback đến server-side webhook endpoint
+      // Điều này sẽ đăng ký giao dịch thành công trong cache của server
+      // Sau đó cơ chế polling ở trên sẽ tự động phát hiện và hoàn tất thanh toán
+      const res = await fetch("/api/payment/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-sepay-secret-key": "sepay_webhook_secret_xyz"
+        },
+        body: JSON.stringify({
+          id: Math.floor(100000 + Math.random() * 900000),
+          amount_in: totalAmount,
+          transaction_content: orderCode,
+          transaction_date: new Date().toISOString().replace("T", " ").substring(0, 19),
+          account_number: activeBank.accountNumber,
+          reference_number: "SIM_" + Math.floor(100000000 + Math.random() * 900000000)
+        })
       });
-      window.dispatchEvent(event);
-
-      // 4. Reset giỏ hàng
-      clearCart();
-
-      // 5. Điều hướng sang thư viện sản phẩm của người dùng
-      router.push("/dashboard?tab=library");
-    }, 1200);
+      
+      if (!res.ok) {
+        console.error("Gửi webhook giả lập thất bại");
+      }
+    } catch (e) {
+      console.error("Lỗi giả lập webhook", e);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
